@@ -1,0 +1,27 @@
+---
+- name: Install java
+  apt:
+    name=openjdk-8-jre-headless
+    update_cache=yes
+    state=latest
+- name: create /app directory
+  file:
+    path: /app
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: 0775
+- name: download spring boot app
+  get_url:
+    url: https://github.com/dev4cloud/spring-boot/releases/download/{{app_version}}/{{ app_name }}-{{app_version}}.jar
+    dest: /app/{{app_name}}-{{app_version}}.jar
+    mode: 0644
+- name: correct dir permissions
+  file: dest=/app state=directory
+         owner=www-data group=www-data
+         recurse=yes
+- name: setup systemd
+  template: src=systemd.j2 dest=/etc/systemd/system/myapp.service
+- name: start systemd
+  shell: systemctl daemon-reload && systemctl start myapp
+    

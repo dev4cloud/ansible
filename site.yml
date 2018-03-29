@@ -1,0 +1,8 @@
+#!/usr/bin/env ansible-playbook
+---
+
+- name: Deploy all software on machine
+  hosts: webserver
+  sudo: yes
+  roles:
+    - role: spring-boot-app
