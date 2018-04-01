@@ -14,6 +14,7 @@
       keypair: ansibleDemo # This is one of my keys that i already have in AWS
       region: eu-west-1
       vpc_subnet: subnet-08332f53
+      vpc_id: vpc-6c3db30a
       count: 1
 
     # Task that will be used to Launch/Create an EC2 Instance
@@ -25,7 +26,7 @@
           name: "{{ security_group }}"
           description: Security Group for webserver Servers
           region: "{{ region }}"
-          vpc_id: vpc-6c3db30a
+          vpc_id: "{{ vpc_id }}"
           rules:
             - proto: tcp
               from_port: 22
