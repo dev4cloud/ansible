@@ -10,15 +10,30 @@
     vars:
       instance_type: t2.micro
       security_group: ansible-webserver # Change the security group name here
-      image: ami-f90a4880 # ubuntu server 16.04
+      image: ami-02df9ea15c1778c9c # ubuntu server 18.04
       keypair: ansibleDemo # This is one of my keys that i already have in AWS
       region: eu-west-1
-      vpc_subnet: subnet-08332f53
+      vpc_subnets: ['subnet-08332f53', 'subnet-0a12b242']
       vpc_id: vpc-6c3db30a
       count: 1
 
     # Task that will be used to Launch/Create an EC2 Instance
     tasks:
+      - name: create a new ec2 key pair, returns generated private key
+        local_action:
+          module: ec2_key
+          name: "{{ keypair }}"
+          region: "{{ region }}"
+        register: key
+      - debug: msg="{{ key }}"
+      - name: write pem file
+        local_action:
+            module: copy
+            content: |
+                   {{ key.key.private_key }}
+            dest: "./{{ keypair }}.pem"
+            mode: 0600
+        when: key.key.private_key is defined
 
       - name: Create a security group
         local_action: 
@@ -50,6 +65,7 @@
         register: basic_firewall
 
       - name: Launch the new EC2 Instance
+        with_items: "{{ vpc_subnets }}"
         local_action: ec2 
                       group={{ security_group }} 
                       instance_type={{ instance_type}} 
@@ -58,37 +74,87 @@
                       region={{ region }} 
                       count={{count}}
                       key_name={{ keypair }}
-                      vpc_subnet_id={{ vpc_subnet }}
+                      vpc_subnet_id={{ item }}
+                      monitoring=yes
+                      assign_public_ip=yes
         register: ec2
 
-      - debug: msg="{{ec2.instances}}"
+      - debug: msg="{{ec2}}"
+      - name: Expand targets for later use
+        set_fact:
+           # Sets a list of mount directories
+           ec2_instances: "\
+                 {{ ec2_instances | default([]) }} + \
+                 {{ item.instances }}"
+        with_items: "{{ ec2.results }}"
+      - debug: msg="{{ec2_instances}}"
+
+      - name: write pem file
+        local_action:
+            module: copy
+            src: "./hosts.template"
+            dest: "./hosts"
+            mode: 0600
 
       - name: Add the newly created EC2 instance(s) to the local host group (located inside the directory)
         local_action: lineinfile 
                       dest="./hosts" 
-                      regexp="^\d.*"
                       insertafter="[webserver]" line="{{ item.public_ip }}"
-        with_items: "{{ ec2.instances }}"
-
+        with_items: "{{ ec2_instances }}"
 
       - name: Wait for SSH to come up
         local_action: wait_for 
                       host="{{ item.public_ip }}"
                       port=22 
                       state=started
-        with_items: "{{ ec2.instances }}"
+        with_items: "{{ ec2_instances }}"
 
       - name: Add tag to Instance(s)
         local_action: ec2_tag resource="{{ item.id }}" region="{{ region }}" state=present
-        with_items: "{{ ec2.instances }}"
+        with_items: "{{ ec2_instances }}"
         args:
           tags:
             Name: webserver
 
-      - name: Ensure python is installed
-        local_action: shell ssh -o StrictHostKeyChecking=no -o 'IdentitiesOnly yes' -i "{{ keypair }}".pem ubuntu@"{{ item.public_ip }}" sudo apt-get -y install python
-        with_items: "{{ ec2.instances }}"
+      - name: Expand targets for later use
+        set_fact:
+           # Sets a list of mount directories
+           webserver_targets: "\
+                 {{ webserver_targets | default([]) }} + \
+                 [ { 'Id': '{{ item.id }}', 'Port': '8080' } ]"
+        with_items: "{{ ec2_instances }}"
 
+      - debug: msg="{{webserver_targets}}"
+      - name: Create a target group with a default health check
+        local_action: elb_target_group
+                      name=webservers
+                      protocol=http
+                      port=80
+                      region={{ region }}
+                      vpc_id="{{ vpc_id }}"
+                      state=present
+                      targets={{ webserver_targets }}
+                      wait=False
+
+      - name: Create an ELB and attach a listener
+        local_action: 
+          module: elb_application_lb
+          name: webserver-elb
+          region: "{{ region }}"
+          security_groups:
+            - "{{ security_group }}"
+          subnets: "{{ vpc_subnets}}"
+          listeners:
+             - Protocol: HTTP # Required. The protocol for connections from clients to the load balancer (HTTP or HTTPS) (case-sensitive).
+               Port: 80 # Required. The port on which the load balancer is listening.
+               # The security policy that defines which ciphers and protocols are supported. The default is the current predefined security policy.
+               #SslPolicy: ELBSecurityPolicy-2015-05
+               #Certificates: # The ARN of the certificate (only one certficate ARN should be provided)
+               #- CertificateArn: arn:aws:iam::12345678987:server-certificate/test.domain.com
+               DefaultActions:
+                 - Type: forward # Required.
+                   TargetGroupName: webservers # Required. The name of the target group
+          state: present
 
 
 
