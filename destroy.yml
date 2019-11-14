@@ -1,0 +1,54 @@
+#!/usr/bin/env ansible-playbook
+---
+
+  - name: Provision an EC2 Instance
+    hosts: local
+    connection: local
+    gather_facts: False
+    tags: destroying
+    # Necessary Variables for creating/provisioning the EC2 Instance
+    vars:
+      instance_type: t2.micro
+      security_group: ansible-webserver # Change the security group name here
+      image: ami-02df9ea15c1778c9c # ubuntu server 18.04
+      keypair: ansibleDemo # This is one of my keys that i already have in AWS
+      region: eu-west-1
+      vpc_subnets: ['subnet-08332f53', 'subnet-0a12b242']
+      vpc_id: vpc-6c3db30a
+      count: 1
+
+    # Task that will be used to Launch/Create an EC2 Instance
+    tasks:
+       # Remove an ELB
+      - local_action: 
+          module: elb_application_lb
+          name: webserver-elb
+          region: "{{ region }}"
+          state: absent
+  
+      - name: Create a target group with a default health check
+        local_action: elb_target_group
+                      name=webservers
+                      region={{ region }}
+                      state=absent
+
+      - name: Launch the new EC2 Instance
+        local_action: ec2 
+                      instance_tags= { 'Name' = 'webserver'}
+                      region={{ region }}
+                      state=absent
+
+      - name: create a new ec2 key pair, returns generated private key
+        local_action:
+          module: ec2_key
+          name: "{{ keypair }}"
+          region: "{{ region }}"
+          state: absent
+      - name: Create a security group
+        local_action: 
+          module: ec2_group
+          name: "{{ security_group }}"
+          region: "{{ region }}"
+          state: absent
+
+
