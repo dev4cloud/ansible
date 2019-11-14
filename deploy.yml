@@ -12,6 +12,8 @@
       security_group: ansible-webserver # Change the security group name here
       image: ami-02df9ea15c1778c9c # ubuntu server 18.04
       keypair: ansibleDemo # This is one of my keys that i already have in AWS
+      target_group_name: webservers
+      elb_name: webserver-elb
       region: eu-west-1
       vpc_subnets: ['subnet-08332f53', 'subnet-0a12b242']
       vpc_id: vpc-6c3db30a
@@ -121,13 +123,13 @@
            # Sets a list of mount directories
            webserver_targets: "\
                  {{ webserver_targets | default([]) }} + \
-                 [ { 'Id': '{{ item.id }}', 'Port': '8080' } ]"
+                 [ { 'Id': '{{ item.id }}', 'Port': 8080 } ]"
         with_items: "{{ ec2_instances }}"
 
       - debug: msg="{{webserver_targets}}"
       - name: Create a target group with a default health check
         local_action: elb_target_group
-                      name=webservers
+                      name="{{ target_group_name }}"
                       protocol=http
                       port=80
                       region={{ region }}
@@ -139,7 +141,7 @@
       - name: Create an ELB and attach a listener
         local_action: 
           module: elb_application_lb
-          name: webserver-elb
+          name: "{{ elb_name }}"
           region: "{{ region }}"
           security_groups:
             - "{{ security_group }}"
@@ -153,7 +155,7 @@
                #- CertificateArn: arn:aws:iam::12345678987:server-certificate/test.domain.com
                DefaultActions:
                  - Type: forward # Required.
-                   TargetGroupName: webservers # Required. The name of the target group
+                   TargetGroupName: "{{ target_group_name }}" # Required. The name of the target group
           state: present
 
 
