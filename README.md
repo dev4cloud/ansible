@@ -2,11 +2,15 @@
 
 ## Inventory setup
 Based on [https://www.agix.com.au/build-an-ec2-using-ansible-step-by-step/](https://www.agix.com.au/build-an-ec2-using-ansible-step-by-step/)
+
+This is the setup the scripts are going to create:
+![Target Setup](Setup.png)
+
 To create the aws instance first customize the vars in deploy.yml and then fill the aws credentials into the setupEnvironment.sh script
 ```
 source setupEnvironment.sh
 ```
-then run the deployment
+then potentially adjust the variables in deploy.yml to match your environment and run the deployment
 ```
 ansible-playbook  -i ./hosts deploy.yml
 ```
