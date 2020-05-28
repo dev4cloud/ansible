@@ -11,9 +11,11 @@
       instance_type: t2.micro
       security_group: ansible-webserver # Change the security group name here
       image: ami-02df9ea15c1778c9c # ubuntu server 18.04
-      keypair: ansibleDemo # This is one of my keys that i already have in AWS
-      target_group_name: webservers
-      elb_name: webserver-elb
+      keypair: ansibleDemo # the unique name of a key pair
+      target_group_name: webservers # the unique name of the target group the instances will be added
+      elb_name: webserver-elb # the unique name for the load balancer
+
+      instance_tag: webserver # a tag for the instances to refer to them later
       region: eu-west-1
       vpc_subnets: ['subnet-08332f53', 'subnet-0a12b242']
       vpc_id: vpc-6c3db30a
@@ -116,7 +118,7 @@
         with_items: "{{ ec2_instances }}"
         args:
           tags:
-            Name: webserver
+            Name: "{{instance_tag}}"
 
       - name: Expand targets for later use
         set_fact:
@@ -157,6 +159,9 @@
                  - Type: forward # Required.
                    TargetGroupName: "{{ target_group_name }}" # Required. The name of the target group
           state: present
+        register: lb_output
+
+      - debug: msg="Remember this url {{lb_output.dns_name}}"
 
 
 

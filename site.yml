@@ -3,6 +3,6 @@
 
 - name: Deploy all software on machine
   hosts: webserver
-  sudo: yes
+  become: true
   roles:
     - role: spring-boot-app
