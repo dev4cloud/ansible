@@ -1,7 +1,7 @@
 ---
 - name: Install java
   apt:
-    name=openjdk-8-jre-headless
+    name=openjdk-11-jre-headless
     update_cache=yes
     state=latest
 - name: create /app directory
@@ -13,7 +13,7 @@
     mode: 0775
 - name: download spring boot app
   get_url:
-    url: https://github.com/dev4cloud/spring-boot/releases/download/{{app_version}}/{{ app_name }}-{{app_version}}.jar
+    url: https://github.com/dev4cloud/cloud-example-app/releases/download/{{app_version}}/{{ app_name }}-{{app_version}}.jar
     dest: /app/{{app_name}}-{{app_version}}.jar
     mode: 0644
 - name: correct dir permissions

@@ -10,7 +10,7 @@
     vars:
       instance_type: t2.micro
       security_group: ansible-webserver # Change the security group name here
-      image: ami-02df9ea15c1778c9c # ubuntu server 18.04
+      image: ami-08bac620dc84221eb # ubuntu server 20.04
       keypair: ansibleDemo # the unique name of a key pair
       target_group_name: webservers # the unique name of the target group the instances will be added
       elb_name: webserver-elb # the unique name for the load balancer
